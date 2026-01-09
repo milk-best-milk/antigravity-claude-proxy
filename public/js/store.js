@@ -243,6 +243,12 @@ document.addEventListener('alpine:init', () => {
                 oauthTimeout: "⏱️ OAuth authorization timed out. Please try again.",
                 oauthWindowClosed: "OAuth window was closed. Authorization may be incomplete.",
                 cancelOAuth: "Cancel",
+                // MCP CLI & Gemini 1M
+                mcpCliExperimental: "Experimental MCP CLI",
+                mcpCliDesc: "Enables experimental MCP integration for reliable tool usage with reduced context consumption.",
+                gemini1mMode: "Gemini 1M Context Mode",
+                gemini1mDesc: "Appends [1m] suffix to Gemini models for 1M context window support.",
+                gemini1mWarning: "⚠ Large context may reduce Gemini-3-Pro performance.",
             },
             zh: {
                 dashboard: "仪表盘",
@@ -475,6 +481,12 @@ document.addEventListener('alpine:init', () => {
                 oauthTimeout: "⏱️ OAuth 授权超时，请重试。",
                 oauthWindowClosed: "OAuth 窗口已关闭，授权可能未完成。",
                 cancelOAuth: "取消",
+                // MCP CLI & Gemini 1M
+                mcpCliExperimental: "实验性 MCP CLI",
+                mcpCliDesc: "启用实验性 MCP 集成，减少上下文消耗，提高工具调用可靠性。",
+                gemini1mMode: "Gemini 1M 上下文模式",
+                gemini1mDesc: "为 Gemini 模型添加 [1m] 后缀以支持 1M 上下文窗口。",
+                gemini1mWarning: "⚠ 大上下文可能降低 Gemini-3-Pro 性能。",
             }
         },
 

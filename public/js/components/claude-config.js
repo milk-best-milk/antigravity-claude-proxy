@@ -8,6 +8,16 @@ window.Components.claudeConfig = () => ({
     config: { env: {} },
     models: [],
     loading: false,
+    gemini1mSuffix: false,
+
+    // Model fields that may contain Gemini model names
+    geminiModelFields: [
+        'ANTHROPIC_MODEL',
+        'CLAUDE_CODE_SUBAGENT_MODEL',
+        'ANTHROPIC_DEFAULT_OPUS_MODEL',
+        'ANTHROPIC_DEFAULT_SONNET_MODEL',
+        'ANTHROPIC_DEFAULT_HAIKU_MODEL'
+    ],
 
     init() {
         // Only fetch config if this is the active sub-tab
@@ -28,6 +38,36 @@ window.Components.claudeConfig = () => ({
         this.models = Alpine.store('data').models || [];
     },
 
+    /**
+     * Detect if any Gemini model has [1m] suffix
+     */
+    detectGemini1mSuffix() {
+        for (const field of this.geminiModelFields) {
+            const val = this.config.env[field];
+            if (val && val.toLowerCase().includes('gemini') && val.includes('[1m]')) {
+                return true;
+            }
+        }
+        return false;
+    },
+
+    /**
+     * Toggle [1m] suffix for all Gemini models
+     */
+    toggleGemini1mSuffix(enabled) {
+        for (const field of this.geminiModelFields) {
+            const val = this.config.env[field];
+            if (val && val.toLowerCase().includes('gemini')) {
+                if (enabled && !val.includes('[1m]')) {
+                    this.config.env[field] = val.trim() + ' [1m]';
+                } else if (!enabled && val.includes('[1m]')) {
+                    this.config.env[field] = val.replace(/\s*\[1m\]$/i, '').trim();
+                }
+            }
+        }
+        this.gemini1mSuffix = enabled;
+    },
+
     async fetchConfig() {
         const password = Alpine.store('global').webuiPassword;
         try {
@@ -38,6 +78,24 @@ window.Components.claudeConfig = () => ({
             const data = await response.json();
             this.config = data.config || {};
             if (!this.config.env) this.config.env = {};
+
+            // Default MCP CLI to true if not set
+            if (this.config.env.ENABLE_EXPERIMENTAL_MCP_CLI === undefined) {
+                this.config.env.ENABLE_EXPERIMENTAL_MCP_CLI = 'true';
+            }
+
+            // Detect existing [1m] suffix state, default to true
+            const hasExistingSuffix = this.detectGemini1mSuffix();
+            const hasGeminiModels = this.geminiModelFields.some(f => 
+                this.config.env[f]?.toLowerCase().includes('gemini')
+            );
+            
+            // Default to enabled: if no suffix found but Gemini models exist, apply suffix
+            if (!hasExistingSuffix && hasGeminiModels) {
+                this.toggleGemini1mSuffix(true);
+            } else {
+                this.gemini1mSuffix = hasExistingSuffix || !hasGeminiModels;
+            }
         } catch (e) {
             console.error('Failed to fetch Claude config:', e);
         }
