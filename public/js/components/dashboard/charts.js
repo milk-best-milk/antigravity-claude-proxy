@@ -135,16 +135,6 @@ window.DashboardCharts.createDataset = function (label, data, color, canvas) {
  * @param {object} component - Dashboard component instance
  */
 window.DashboardCharts.updateCharts = function (component) {
-  // Safely destroy existing chart instance FIRST
-  if (component.charts.quotaDistribution) {
-    try {
-      component.charts.quotaDistribution.destroy();
-    } catch (e) {
-      console.error("Failed to destroy quota chart:", e);
-    }
-    component.charts.quotaDistribution = null;
-  }
-
   const canvas = document.getElementById("quotaChart");
 
   // Safety checks
@@ -152,6 +142,33 @@ window.DashboardCharts.updateCharts = function (component) {
     console.debug("quotaChart canvas not found");
     return;
   }
+
+  // FORCE DESTROY: Check for existing chart on the canvas element property
+  // This handles cases where Component state is lost but DOM persists
+  if (canvas._chartInstance) {
+    console.debug("Destroying existing quota chart from canvas property");
+    try {
+        canvas._chartInstance.destroy();
+    } catch(e) { console.warn(e); }
+    canvas._chartInstance = null;
+  }
+  
+  // Also check component state as backup
+  if (component.charts.quotaDistribution) {
+     try {
+         component.charts.quotaDistribution.destroy();
+     } catch(e) { }
+     component.charts.quotaDistribution = null;
+  }
+  
+  // Also try Chart.js registry
+  if (typeof Chart !== "undefined" && Chart.getChart) {
+      const regChart = Chart.getChart(canvas);
+      if (regChart) {
+          try { regChart.destroy(); } catch(e) {}
+      }
+  }
+
   if (typeof Chart === "undefined") {
     console.warn("Chart.js not loaded");
     return;
@@ -250,39 +267,46 @@ window.DashboardCharts.updateCharts = function (component) {
     labels.push(depletedLabel);
   });
 
+  // Create Chart
   try {
-    component.charts.quotaDistribution = new Chart(canvas, {
-      type: "doughnut",
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            data: data,
-            backgroundColor: colors,
-            borderColor: getThemeColor("--color-space-950"),
-            borderWidth: 0,
-            hoverOffset: 0,
-            borderRadius: 0,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: "85%",
-        rotation: -90,
-        circumference: 360,
-        plugins: {
-          legend: { display: false },
-          tooltip: { enabled: false },
-          title: { display: false },
-        },
-        animation: {
-          animateScale: true,
-          animateRotate: true,
-        },
-      },
+    const newChart = new Chart(canvas, {
+       // ... config
+       type: "doughnut",
+       data: {
+         labels: labels,
+         datasets: [
+           {
+             data: data,
+             backgroundColor: colors,
+             borderColor: getThemeColor("--color-space-950"),
+             borderWidth: 0,
+             hoverOffset: 0,
+             borderRadius: 0,
+           },
+         ],
+       },
+       options: {
+         responsive: true,
+         maintainAspectRatio: false,
+         cutout: "85%",
+         rotation: -90,
+         circumference: 360,
+         plugins: {
+           legend: { display: false },
+           tooltip: { enabled: false },
+           title: { display: false },
+         },
+         animation: {
+           animateScale: true,
+           animateRotate: true,
+         },
+       },
     });
+    
+    // SAVE INSTANCE TO CANVAS AND COMPONENT
+    canvas._chartInstance = newChart;
+    component.charts.quotaDistribution = newChart;
+    
   } catch (e) {
     console.error("Failed to create quota chart:", e);
   }
@@ -302,28 +326,46 @@ window.DashboardCharts.updateTrendChart = function (component) {
 
   console.log("[updateTrendChart] Starting update...");
 
-  // Safely destroy existing chart instance FIRST
-  if (component.charts.usageTrend) {
-    console.log("[updateTrendChart] Destroying existing chart");
-    try {
-      // Stop all animations before destroying to prevent null context errors
-      component.charts.usageTrend.stop();
-      component.charts.usageTrend.destroy();
-    } catch (e) {
-      console.error("[updateTrendChart] Failed to destroy chart:", e);
-    }
-    component.charts.usageTrend = null;
+  const canvas = document.getElementById("usageTrendChart");
+  
+  // FORCE DESTROY: Check for existing chart on the canvas element property
+  if (canvas) {
+      if (canvas._chartInstance) {
+        console.debug("Destroying existing trend chart from canvas property");
+        try {
+            canvas._chartInstance.stop();
+            canvas._chartInstance.destroy();
+        } catch(e) { console.warn(e); }
+        canvas._chartInstance = null;
+      }
+      
+      // Also try Chart.js registry
+      if (typeof Chart !== "undefined" && Chart.getChart) {
+          const regChart = Chart.getChart(canvas);
+          if (regChart) {
+              try { regChart.stop(); regChart.destroy(); } catch(e) {}
+          }
+      }
   }
 
-  const canvas = document.getElementById("usageTrendChart");
+  // Also check component state
+  if (component.charts.usageTrend) {
+    try {
+      component.charts.usageTrend.stop();
+      component.charts.usageTrend.destroy();
+    } catch (e) { }
+    component.charts.usageTrend = null;
+  }
 
   // Safety checks
   if (!canvas) {
     console.error("[updateTrendChart] Canvas not found in DOM!");
+    _trendChartUpdateLock = false; // Release lock!
     return;
   }
   if (typeof Chart === "undefined") {
     console.error("[updateTrendChart] Chart.js not loaded");
+    _trendChartUpdateLock = false; // Release lock!
     return;
   }
 
@@ -476,7 +518,7 @@ window.DashboardCharts.updateTrendChart = function (component) {
   }
 
   try {
-    component.charts.usageTrend = new Chart(canvas, {
+    const newChart = new Chart(canvas, {
       type: "line",
       data: { labels, datasets },
       options: {
@@ -533,6 +575,11 @@ window.DashboardCharts.updateTrendChart = function (component) {
         },
       },
     });
+    
+    // SAVE INSTANCE
+    canvas._chartInstance = newChart;
+    component.charts.usageTrend = newChart;
+
   } catch (e) {
     console.error("Failed to create trend chart:", e);
   } finally {
