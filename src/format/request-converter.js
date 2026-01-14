@@ -95,8 +95,7 @@ export function convertAnthropicToGoogle(anthropicRequest) {
     }
 
     // Convert messages to contents, then filter unsigned thinking blocks
-    for (let i = 0; i < processedMessages.length; i++) {
-        const msg = processedMessages[i];
+    for (const msg of processedMessages) {
         let msgContent = msg.content;
 
         // For assistant messages, process thinking blocks and reorder content
